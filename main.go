@@ -8,58 +8,71 @@ import (
 	"strings"
 )
 
+type Problem struct {
+	Question string
+	Answer   string
+}
+
 func main() {
 	csvFileName := flag.String("csv", "problems.csv", "a csv file in the format of 'question,answer'")
 	flag.Parse()
 
-	file, error := os.Open(*csvFileName)
-
-	if error != nil {
-		exit(fmt.Sprintf("Failed to open the csv file: %s\n", *csvFileName))
+	problems, err := readProblems(*csvFileName)
+	if err != nil {
+		exit(fmt.Sprintf("Failed to read problems from CSV: %v", err))
 	}
+
+	correct := conductQuiz(problems)
+	fmt.Printf("You got %d out of %d correct\n", correct, len(problems))
+
+}
+
+func readProblems(filename string) ([]Problem, error) {
+	file, err := os.Open(filename)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer file.Close()
 
 	r := csv.NewReader(file)
 	lines, err := r.ReadAll()
 
 	if err != nil {
-		exit("Failed to parse the provided csv file")
+		return nil, err
 	}
+	return parseLines(lines), nil
+}
 
-	problems := parseLines(lines)
-
+func conductQuiz(problems []Problem) int {
 	correct := 0
 
-	for i, problem := range problems {
-		fmt.Printf("#%d: %s = \n", i+1, problem.question)
+	for i, p := range problems {
+		fmt.Printf("#%d: %s = \n", i+1, p.Question)
 
 		var answer string
 
 		fmt.Scanf("%s\n", &answer)
-		if answer == problem.answer {
+		if answer == p.Answer {
 			correct++
 		}
 	}
 
-	fmt.Printf("You got %d out of %d correct\n", correct, len(problems))
-
+	return correct
 }
 
-func parseLines(lines [][]string) []problem {
-	problems := make([]problem, len(lines))
+func parseLines(lines [][]string) []Problem {
+	problems := make([]Problem, len(lines))
 
 	for i, line := range lines {
-		problems[i] = problem{
-			question: line[0],
-			answer:  strings.TrimSpace(line[1]),
+		problems[i] = Problem{
+			Question: line[0],
+			Answer:   strings.TrimSpace(line[1]),
 		}
 	}
 
 	return problems
-}
-
-type problem struct {
-	question string
-	answer   string
 }
 
 func exit(msg string) {
